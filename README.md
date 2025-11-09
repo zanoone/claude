@@ -21,63 +21,84 @@ CodeIgniter 4로 구축한 관리자/사용자 페이지 및 실시간 채팅 �
 ## 기술 스택
 
 - **프레임워크**: CodeIgniter 4.6.3
-- **PHP**: 8.4
-- **데이터베이스**: MariaDB
-- **프론트엔드**: Bootstrap 5, jQuery
-- **서버**: Ubuntu 24.04
+- **PHP**: 8.0+
+- **데이터베이스**: MySQL / MariaDB
+- **프론트엔드**: Bootstrap 5, jQuery, Bootstrap Icons
+- **서버**: Ubuntu 24.04 (또는 클라우드 호스팅)
 
-## 설치 방법
+## 빠른 시작 (GitHub 사용자용)
 
-### 1. 필수 요구사항
-- PHP 8.0 이상
-- MariaDB 10.3 이상
-- Composer
+### 옵션 1: 무료 클라우드 데이터베이스 사용 (추천 ⭐)
 
-### 2. 프로젝트 클론
+**GitHub에 MySQL 서버가 없어도 됩니다!** 무료 클라우드 DB를 사용하세요.
+
+1. **프로젝트 클론**
 ```bash
-git clone <repository-url>
+git clone https://github.com/your-username/smartkim.git
 cd smartkim
 ```
 
-### 3. 의존성 설치
+2. **의존성 설치**
 ```bash
 composer install
 ```
 
-### 4. 환경 설정
-`.env` 파일을 수정하여 데이터베이스 정보를 입력하세요:
+3. **무료 데이터베이스 설정**
 
+다음 중 하나를 선택하세요:
+- [Railway](https://railway.app) - 추천! 가장 간단 (무료 $5/월 크레딧)
+- [PlanetScale](https://planetscale.com) - Serverless MySQL
+- [Aiven](https://aiven.io) - 30일 무료 체험
+
+📖 **상세 가이드**: [무료 데이터베이스 설정 가이드](docs/FREE_DATABASE_SETUP.md)
+
+4. **환경 변수 설정**
+
+`.env` 파일을 수정하여 DB 정보를 입력:
 ```ini
-database.default.hostname = localhost
-database.default.database = smartkim_db
-database.default.username = root
-database.default.password = your_password
-database.default.DBDriver = MySQLi
+database.default.hostname = your-db-host
+database.default.database = your-db-name
+database.default.username = your-username
+database.default.password = your-password
 ```
 
-### 5. 데이터베이스 생성
-```bash
-mysql -u root -p
-CREATE DATABASE smartkim_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-EXIT;
-```
-
-### 6. 마이그레이션 실행
+5. **데이터베이스 마이그레이션**
 ```bash
 php spark migrate
-```
-
-### 7. 초기 데이터 삽입
-```bash
 php spark db:seed InitialSeeder
 ```
 
-### 8. 개발 서버 실행
+6. **서버 실행**
 ```bash
 php spark serve
 ```
 
 브라우저에서 `http://localhost:8080` 접속
+
+---
+
+### 옵션 2: 로컬 MySQL 사용
+
+로컬에 MySQL이 설치되어 있다면:
+
+```bash
+# 1. 데이터베이스 생성
+mysql -u root -p
+CREATE DATABASE smartkim_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
+
+# 2. .env 파일 수정
+database.default.hostname = localhost
+database.default.database = smartkim_db
+database.default.username = root
+database.default.password = your_password
+
+# 3. 마이그레이션 실행
+composer install
+php spark migrate
+php spark db:seed InitialSeeder
+php spark serve
+```
 
 ## 기본 계정 정보
 
@@ -168,6 +189,43 @@ smartkim/
 - 세션 기반 인증
 - 역할 기반 권한 관리 (admin/user)
 
+## GitHub에서 사용하기
+
+### GitHub Actions로 테스트 자동화
+
+`.github/workflows/ci.yml` 파일을 추가하면 푸시할 때마다 자동 테스트가 실행됩니다:
+
+```yaml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: smartkim_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+      - run: composer install
+      - run: php spark migrate
+      - run: ./vendor/bin/phpunit
+```
+
+---
+
 ## 배포 시 주의사항
 
 1. `.env` 파일에서 `CI_ENVIRONMENT`를 `production`으로 변경
@@ -175,6 +233,7 @@ smartkim/
 3. 강력한 `encryption.key` 생성
 4. 데이터베이스 비밀번호 변경
 5. 관리자 계정 비밀번호 변경
+6. ⚠️ **`.env` 파일은 절대 GitHub에 커밋하지 마세요!**
 
 ## 라이선스
 
