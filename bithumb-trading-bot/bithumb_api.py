@@ -38,9 +38,14 @@ class BithumbAPI:
             query_hash = hashlib.sha512(query_string.encode('utf-8')).hexdigest()
             payload['query_hash'] = query_hash
             payload['query_hash_alg'] = 'SHA512'
+            logger.debug(f"Query String: {query_string}")
+            logger.debug(f"Query Hash: {query_hash}")
+
+        logger.debug(f"JWT Payload: {payload}")
 
         # JWT 토큰 생성
         token = jwt.encode(payload, self.secret_key, algorithm='HS256')
+        logger.debug(f"Generated Token: {token[:50]}...")
         return f"Bearer {token}"
 
     def _request(self, method: str, endpoint: str, params: Dict = None) -> Dict:
@@ -48,17 +53,21 @@ class BithumbAPI:
         url = f"{self.BASE_URL}{endpoint}"
 
         headers = {
-            'Authorization': self._generate_jwt_token(endpoint, params),
-            'Content-Type': 'application/json'
+            'Authorization': self._generate_jwt_token(endpoint, params)
         }
 
         try:
             if method == 'GET':
                 response = requests.get(url, params=params, headers=headers, timeout=10)
             elif method == 'POST':
-                response = requests.post(url, json=params, headers=headers, timeout=10)
+                # Bithumb API는 POST 요청 시 form data 형식 사용
+                response = requests.post(url, data=params, headers=headers, timeout=10)
             else:
                 raise ValueError(f"Unsupported method: {method}")
+
+            logger.debug(f"Request URL: {url}")
+            logger.debug(f"Request Method: {method}")
+            logger.debug(f"Response Status: {response.status_code}")
 
             response.raise_for_status()
             data = response.json()
