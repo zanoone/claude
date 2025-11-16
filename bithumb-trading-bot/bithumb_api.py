@@ -1,13 +1,12 @@
 """
-Bithumb API 2.0 Client (JWT 인증 방식)
+Bithumb API Client (HMAC-SHA512 인증 방식)
 """
 import time
-import jwt
 import requests
 import hashlib
 import urllib.parse
-import uuid
 import base64
+import hmac
 from typing import Dict, Optional, Any
 import logging
 
@@ -16,66 +15,75 @@ logger = logging.getLogger(__name__)
 
 
 class BithumbAPI:
-    """Bithumb API 2.0 JWT 인증 클라이언트"""
+    """Bithumb API HMAC-SHA512 인증 클라이언트"""
 
     BASE_URL = "https://api.bithumb.com"
 
     def __init__(self, api_key: str, secret_key: str):
-        self.api_key = api_key
+        self.api_key = api_key.encode('utf-8')
+        self.secret_key = secret_key.encode('utf-8')
 
-        # Secret Key가 Base64로 인코딩되어 있다면 디코딩
-        try:
-            # Base64 디코딩 시도
-            decoded = base64.b64decode(secret_key)
-            self.secret_key = decoded.decode('utf-8')
-            logger.debug(f"Secret Key를 Base64 디코딩했습니다 (길이: {len(secret_key)} -> {len(self.secret_key)})")
-        except Exception:
-            # 디코딩 실패 시 원본 사용
-            self.secret_key = secret_key
-            logger.debug(f"Secret Key를 원본 그대로 사용합니다 (길이: {len(secret_key)})")
+    def _generate_signature(self, endpoint: str, params: Dict = None, nonce: str = None) -> tuple:
+        """HMAC-SHA512 시그니처 생성"""
+        if nonce is None:
+            nonce = str(int(time.time() * 1000))
 
-    def _generate_jwt_token(self, endpoint: str, params: Dict = None) -> str:
-        """JWT 토큰 생성 (Bithumb API 2.0 표준)"""
-        # 페이로드 기본 필드
-        payload = {
-            'access_key': self.api_key,
-            'nonce': str(uuid.uuid4()),
-            'timestamp': round(time.time() * 1000)
-        }
+        # 파라미터에 endpoint 추가
+        if params is None:
+            params = {}
+        params['endpoint'] = endpoint
 
-        # 쿼리 파라미터가 있는 경우 query_hash 생성
-        if params:
-            query_string = urllib.parse.urlencode(params)
-            query_hash = hashlib.sha512(query_string.encode('utf-8')).hexdigest()
-            payload['query_hash'] = query_hash
-            payload['query_hash_alg'] = 'SHA512'
-            logger.debug(f"Query String: {query_string}")
-            logger.debug(f"Query Hash: {query_hash}")
+        # Query string 생성 (sorted)
+        query_string = urllib.parse.urlencode(sorted(params.items()))
 
-        logger.debug(f"JWT Payload: {payload}")
+        # Signature 생성: endpoint + \0 + query_string + \0 + nonce
+        payload = endpoint + chr(0) + query_string + chr(0) + nonce
 
-        # JWT 토큰 생성
-        token = jwt.encode(payload, self.secret_key, algorithm='HS256')
-        logger.debug(f"Generated Token: {token[:50]}...")
-        return f"Bearer {token}"
+        # HMAC-SHA512 해싱
+        signature = hmac.new(
+            self.secret_key,
+            payload.encode('utf-8'),
+            hashlib.sha512
+        )
+
+        # Base64 인코딩
+        signature_b64 = base64.b64encode(signature.hexdigest().encode('utf-8'))
+
+        logger.debug(f"Endpoint: {endpoint}")
+        logger.debug(f"Query String: {query_string}")
+        logger.debug(f"Nonce: {nonce}")
+        logger.debug(f"Signature: {signature_b64.decode('utf-8')[:50]}...")
+
+        return signature_b64.decode('utf-8'), nonce
 
     def _request(self, method: str, endpoint: str, params: Dict = None) -> Dict:
         """API 요청 실행"""
         url = f"{self.BASE_URL}{endpoint}"
 
-        headers = {
-            'Authorization': self._generate_jwt_token(endpoint, params)
-        }
+        if method == 'POST':
+            # Private API - HMAC-SHA512 인증 필요
+            signature, nonce = self._generate_signature(endpoint, params)
+
+            headers = {
+                'Api-Key': self.api_key.decode('utf-8'),
+                'Api-Sign': signature,
+                'Api-Nonce': nonce,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+
+            # params에 endpoint 포함 (이미 _generate_signature에서 추가됨)
+            if params is None:
+                params = {}
+            params['endpoint'] = endpoint
+
+            logger.debug(f"Request Headers: {headers}")
+
+            response = requests.post(url, data=params, headers=headers, timeout=10)
+        else:
+            # Public API - 인증 불필요
+            response = requests.get(url, params=params, timeout=10)
 
         try:
-            if method == 'GET':
-                response = requests.get(url, params=params, headers=headers, timeout=10)
-            elif method == 'POST':
-                # Bithumb API는 POST 요청 시 form data 형식 사용
-                response = requests.post(url, data=params, headers=headers, timeout=10)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-
             logger.debug(f"Request URL: {url}")
             logger.debug(f"Request Method: {method}")
             logger.debug(f"Response Status: {response.status_code}")
@@ -89,6 +97,7 @@ class BithumbAPI:
             else:
                 error_msg = data.get('message', 'Unknown error')
                 logger.error(f"API Error: {error_msg}")
+                logger.error(f"Full Response: {data}")
                 raise Exception(f"Bithumb API Error: {error_msg}")
 
         except requests.exceptions.RequestException as e:
