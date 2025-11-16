@@ -21,7 +21,8 @@ class BithumbAPI:
 
     def __init__(self, api_key: str, secret_key: str):
         self.api_key = api_key.encode('utf-8')
-        self.secret_key = secret_key.encode('utf-8')
+        # Secret Key가 Base64로 인코딩되어 있으므로 디코딩
+        self.secret_key = base64.b64decode(secret_key)
 
     def _generate_signature(self, endpoint: str, params: Dict = None, nonce: str = None) -> tuple:
         """HMAC-SHA512 시그니처 생성"""
