@@ -29,8 +29,18 @@ def main():
     print("=" * 70)
     print(f"API Key: {api_key}")
     print(f"API Key 길이: {len(api_key) if api_key else 0}")
-    print(f"Secret Key: {secret_key[:30]}...")
+    print(f"Secret Key (원본): {secret_key[:30]}...")
     print(f"Secret Key 길이: {len(secret_key) if secret_key else 0}")
+
+    # Base64 디코딩 테스트
+    try:
+        import base64
+        decoded = base64.b64decode(secret_key).decode('utf-8')
+        print(f"Secret Key (디코딩): {decoded[:30]}...")
+        print(f"디코딩 후 길이: {len(decoded)}")
+    except Exception as e:
+        print(f"Base64 디코딩 실패: {e}")
+
     print("=" * 70)
 
     if not api_key or not secret_key:
@@ -44,7 +54,7 @@ def main():
     print("\n[테스트 1] Public API - 현재가 조회 (인증 불필요)")
     try:
         ticker = api.get_ticker("BTC")
-        btc_price = ticker.get('closing_price', 0)
+        btc_price = float(ticker.get('closing_price', 0))
         print(f"✅ 성공: BTC 현재가 = {btc_price:,.0f} KRW")
     except Exception as e:
         print(f"❌ 실패: {e}")

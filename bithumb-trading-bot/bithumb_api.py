@@ -7,6 +7,7 @@ import requests
 import hashlib
 import urllib.parse
 import uuid
+import base64
 from typing import Dict, Optional, Any
 import logging
 
@@ -21,7 +22,17 @@ class BithumbAPI:
 
     def __init__(self, api_key: str, secret_key: str):
         self.api_key = api_key
-        self.secret_key = secret_key
+
+        # Secret Key가 Base64로 인코딩되어 있다면 디코딩
+        try:
+            # Base64 디코딩 시도
+            decoded = base64.b64decode(secret_key)
+            self.secret_key = decoded.decode('utf-8')
+            logger.debug(f"Secret Key를 Base64 디코딩했습니다 (길이: {len(secret_key)} -> {len(self.secret_key)})")
+        except Exception:
+            # 디코딩 실패 시 원본 사용
+            self.secret_key = secret_key
+            logger.debug(f"Secret Key를 원본 그대로 사용합니다 (길이: {len(secret_key)})")
 
     def _generate_jwt_token(self, endpoint: str, params: Dict = None) -> str:
         """JWT 토큰 생성 (Bithumb API 2.0 표준)"""
