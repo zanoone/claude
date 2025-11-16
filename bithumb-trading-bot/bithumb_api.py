@@ -21,11 +21,11 @@ class BithumbAPI:
 
     def __init__(self, api_key: str, secret_key: str):
         self.api_key = api_key.encode('utf-8')
-        # Secret Key가 Base64로 인코딩되어 있으므로 디코딩
-        self.secret_key = base64.b64decode(secret_key)
+        # Secret Key를 bytes로 인코딩 (Base64 디코딩 하지 않음)
+        self.secret_key = secret_key.encode('utf-8')
 
     def _generate_signature(self, endpoint: str, params: Dict = None, nonce: str = None) -> tuple:
-        """HMAC-SHA512 시그니처 생성"""
+        """HMAC-SHA512 시그니처 생성 (pybithumb 방식)"""
         if nonce is None:
             nonce = str(int(time.time() * 1000))
 
@@ -34,21 +34,21 @@ class BithumbAPI:
             params = {}
         params['endpoint'] = endpoint
 
-        # Query string 생성 (sorted)
-        query_string = urllib.parse.urlencode(sorted(params.items()))
+        # Query string 생성 (sorted 없이)
+        query_string = urllib.parse.urlencode(params)
 
         # Signature 생성: endpoint + \0 + query_string + \0 + nonce
         payload = endpoint + chr(0) + query_string + chr(0) + nonce
 
         # HMAC-SHA512 해싱
-        signature = hmac.new(
+        h = hmac.new(
             self.secret_key,
             payload.encode('utf-8'),
             hashlib.sha512
         )
 
-        # Base64 인코딩 (바이너리 digest 사용)
-        signature_b64 = base64.b64encode(signature.digest())
+        # hexdigest()를 bytes로 인코딩한 후 Base64 인코딩
+        signature_b64 = base64.b64encode(h.hexdigest().encode('utf-8'))
 
         logger.debug(f"Endpoint: {endpoint}")
         logger.debug(f"Query String: {query_string}")
