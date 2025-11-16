@@ -64,8 +64,8 @@ def main():
 
     print("\n[테스트 2] Private API - 잔고 조회 (인증 필요)")
     try:
-        balance = api.get_balance("KRW")
-        krw_balance = balance.get('available_krw', 0)
+        balance = api.get_balance("ALL")
+        krw_balance = float(balance.get('available_krw', 0))
         print(f"✅ 성공: KRW 잔고 = {krw_balance:,.0f} KRW")
         print("\n잔고 정보:")
         for key, value in balance.items():
