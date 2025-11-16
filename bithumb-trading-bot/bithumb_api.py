@@ -25,34 +25,34 @@ class BithumbAPI:
         self.secret_key = secret_key.encode('utf-8')
 
     def _generate_signature(self, endpoint: str, params: Dict = None, nonce: str = None) -> tuple:
-        """HMAC-SHA512 시그니처 생성 (pybithumb 방식)"""
+        """HMAC-SHA512 시그니처 생성 (JavaScript privateApiV1 방식)"""
         if nonce is None:
             nonce = str(int(time.time() * 1000))
 
-        # 파라미터에 endpoint 추가
+        # Query string 생성 (endpoint 추가하지 않음!)
         if params is None:
             params = {}
-        params['endpoint'] = endpoint
-
-        # Query string 생성 (sorted 없이)
         query_string = urllib.parse.urlencode(params)
 
         # Signature 생성: endpoint + \0 + query_string + \0 + nonce
-        payload = endpoint + chr(0) + query_string + chr(0) + nonce
+        sign_data = endpoint + chr(0) + query_string + chr(0) + nonce
 
         # HMAC-SHA512 해싱
         h = hmac.new(
             self.secret_key,
-            payload.encode('utf-8'),
+            sign_data.encode('utf-8'),
             hashlib.sha512
         )
 
         # hexdigest()를 bytes로 인코딩한 후 Base64 인코딩
-        signature_b64 = base64.b64encode(h.hexdigest().encode('utf-8'))
+        hex_string = h.hexdigest()
+        signature_b64 = base64.b64encode(hex_string.encode('utf-8'))
 
         logger.debug(f"Endpoint: {endpoint}")
-        logger.debug(f"Query String: {query_string}")
+        logger.debug(f"Params String: {query_string}")
+        logger.debug(f"Sign Data: {sign_data[:50]}...")
         logger.debug(f"Nonce: {nonce}")
+        logger.debug(f"Hex Digest: {hex_string[:50]}...")
         logger.debug(f"Signature: {signature_b64.decode('utf-8')[:50]}...")
 
         return signature_b64.decode('utf-8'), nonce
@@ -72,12 +72,12 @@ class BithumbAPI:
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
 
-            # params에 endpoint 포함 (이미 _generate_signature에서 추가됨)
+            # JavaScript 방식: params에 endpoint 추가하지 않음!
             if params is None:
                 params = {}
-            params['endpoint'] = endpoint
 
             logger.debug(f"Request Headers: {headers}")
+            logger.debug(f"POST Body: {params}")
 
             response = requests.post(url, data=params, headers=headers, timeout=10)
         else:
