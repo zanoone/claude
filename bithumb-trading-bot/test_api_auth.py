@@ -7,14 +7,17 @@ import os
 import sys
 import logging
 from dotenv import load_dotenv
-from bithumb_api import BithumbAPI
 
-# 디버그 로깅 활성화
+# 디버그 로깅 활성화 (먼저 설정)
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s [%(levelname)s] %(message)s',
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
+
+# 이제 bithumb_api import
+from bithumb_api import BithumbAPI
+
 logger = logging.getLogger(__name__)
 
 def main():

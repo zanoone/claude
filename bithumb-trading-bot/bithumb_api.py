@@ -89,20 +89,36 @@ class BithumbAPI:
             logger.debug(f"Request Method: {method}")
             logger.debug(f"Response Status: {response.status_code}")
 
-            response.raise_for_status()
-            data = response.json()
+            # 에러 응답도 JSON으로 파싱 시도
+            try:
+                data = response.json()
+                logger.debug(f"Response Data: {data}")
+            except:
+                logger.error(f"Response Text: {response.text}")
+                response.raise_for_status()
+                raise
+
+            # HTTP 상태 코드 확인
+            if response.status_code != 200:
+                error_msg = data.get('message', f'HTTP {response.status_code}')
+                logger.error(f"API Error: {error_msg}")
+                logger.error(f"Full Response: {data}")
+                raise Exception(f"Bithumb API Error: {error_msg}")
 
             # Bithumb API 응답 형식 처리
             if data.get('status') == '0000':
                 return data.get('data', {})
             else:
                 error_msg = data.get('message', 'Unknown error')
-                logger.error(f"API Error: {error_msg}")
+                error_code = data.get('status', 'Unknown')
+                logger.error(f"API Error [{error_code}]: {error_msg}")
                 logger.error(f"Full Response: {data}")
-                raise Exception(f"Bithumb API Error: {error_msg}")
+                raise Exception(f"Bithumb API Error [{error_code}]: {error_msg}")
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Request failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response text: {e.response.text}")
             raise
 
     # ========== 계좌 정보 ==========
