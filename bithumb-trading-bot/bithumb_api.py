@@ -47,8 +47,8 @@ class BithumbAPI:
             hashlib.sha512
         )
 
-        # Base64 인코딩
-        signature_b64 = base64.b64encode(signature.hexdigest().encode('utf-8'))
+        # Base64 인코딩 (바이너리 digest 사용)
+        signature_b64 = base64.b64encode(signature.digest())
 
         logger.debug(f"Endpoint: {endpoint}")
         logger.debug(f"Query String: {query_string}")
