@@ -6,6 +6,7 @@ import jwt
 import requests
 import hashlib
 import urllib.parse
+import uuid
 from typing import Dict, Optional, Any
 import logging
 
@@ -23,19 +24,20 @@ class BithumbAPI:
         self.secret_key = secret_key
 
     def _generate_jwt_token(self, endpoint: str, params: Dict = None) -> str:
-        """JWT 토큰 생성"""
-        nonce = str(int(time.time() * 1000))
-
-        # 페이로드 생성
+        """JWT 토큰 생성 (Bithumb API 2.0 표준)"""
+        # 페이로드 기본 필드
         payload = {
             'access_key': self.api_key,
-            'nonce': nonce
+            'nonce': str(uuid.uuid4()),
+            'timestamp': round(time.time() * 1000)
         }
 
-        # 쿼리 스트링 생성
+        # 쿼리 파라미터가 있는 경우 query_hash 생성
         if params:
             query_string = urllib.parse.urlencode(params)
-            payload['query'] = query_string
+            query_hash = hashlib.sha512(query_string.encode('utf-8')).hexdigest()
+            payload['query_hash'] = query_hash
+            payload['query_hash_alg'] = 'SHA512'
 
         # JWT 토큰 생성
         token = jwt.encode(payload, self.secret_key, algorithm='HS256')

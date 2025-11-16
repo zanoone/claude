@@ -16,12 +16,21 @@ class TelegramNotifier:
     def __init__(self, bot_token: str, chat_id: str, enabled: bool = True):
         self.bot_token = bot_token
         self.chat_id = chat_id
-        self.enabled = enabled
+        self.enabled = enabled and bot_token and chat_id
+
+        if not bot_token or not chat_id:
+            logger.warning("텔레그램 설정이 누락되어 알림이 비활성화됩니다.")
+            self.enabled = False
+            return
+
         self.api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
         if self.enabled:
             # 봇 시작 알림
-            self.send_message("🤖 Bithumb 트레이딩 봇이 시작되었습니다!")
+            if not self.send_message("🤖 Bithumb 트레이딩 봇이 시작되었습니다!"):
+                logger.warning("텔레그램 시작 알림 전송 실패 - 봇 토큰과 채팅 ID를 확인하세요.")
+                logger.warning(f"Bot Token: {bot_token[:20]}... (길이: {len(bot_token)})")
+                logger.warning(f"Chat ID: {chat_id}")
 
     def send_message(self, message: str, parse_mode: str = "HTML") -> bool:
         """텔레그램 메시지 전송"""
